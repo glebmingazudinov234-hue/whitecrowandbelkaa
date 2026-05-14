@@ -1,0 +1,693 @@
+Вот готовый сайт-комбайн с тремя вкладками (фотогалерея, аниме-плеер и книга воспоминаний). Переключение происходит через три милых цветка, а при входе вас встречает анимированное приветствие «Welcome!».
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>три лепестка | фотки · аниме · книга</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #fef7e8 0%, #ffe9f0 100%);
+            font-family: 'Quicksand', 'Segoe UI', 'Poppins', sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* цветочный фон (лёгкие лепестки) */
+        .flower-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.4;
+        }
+        .flower-bg::before {
+            content: "🌸🌼🌸🌼🌸";
+            font-size: 70px;
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            white-space: pre;
+            animation: floatFlower 20s infinite linear;
+        }
+        @keyframes floatFlower {
+            0% { transform: translate(0,0) rotate(0deg); opacity: 0.3;}
+            100% { transform: translate(-40px, -30px) rotate(10deg); opacity: 0.6;}
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+
+        /* welcome-экран */
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 245, 240, 0.98);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: opacity 1.2s ease;
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .welcome-text {
+            font-size: 5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f59eb3, #dd7f9b);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            animation: gentleGlow 1.8s infinite alternate;
+            letter-spacing: 8px;
+            text-shadow: 0 0 20px #ffbfcf;
+        }
+        @keyframes gentleGlow {
+            0% { opacity: 0.5; letter-spacing: 6px; filter: blur(0px);}
+            100% { opacity: 1; letter-spacing: 14px; filter: blur(0.4px);}
+        }
+        .welcome-sub {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #bf7a92;
+        }
+
+        /* основной контент (изначально скрыт) */
+        .main-site {
+            opacity: 0;
+            transition: opacity 1s ease;
+            padding: 1.5rem;
+            max-width: 1300px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* три цветка-кнопки для навигации */
+        .flower-nav {
+            display: flex;
+            justify-content: center;
+            gap: 2.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .flower-btn {
+            background: #ffeef4;
+            border-radius: 100px;
+            padding: 0.8rem 1.6rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+            border: 1px solid #ffcddb;
+            backdrop-filter: blur(4px);
+        }
+        .flower-btn span {
+            font-size: 1.9rem;
+        }
+        .flower-btn:hover {
+            transform: translateY(-5px);
+            background: #ffe3ed;
+            box-shadow: 0 14px 24px rgba(190, 100, 120, 0.15);
+        }
+        .active-flower {
+            background: #ffdbeb;
+            border: 2px solid #eaaec4;
+            box-shadow: 0 6px 14px #ffbfcf;
+        }
+
+        /* контейнеры вкладок */
+        .tab {
+            display: none;
+            animation: fadeSlide 0.4s ease;
+        }
+        .tab.active-tab {
+            display: block;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(12px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        /* общие карточки */
+        .card-panel {
+            background: rgba(255, 250, 245, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 54px;
+            padding: 1.8rem;
+            border: 1px solid #ffe2ec;
+            box-shadow: 0 20px 35px rgba(150, 70, 90, 0.08);
+        }
+
+        /* ========= 1. ФОТОГАЛЕРЕЯ (как флажки) ========= */
+        .photo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .photo-card {
+            width: 140px;
+            background: #fffef7;
+            border-radius: 32px;
+            padding: 10px 8px 12px;
+            text-align: center;
+            transition: 0.2s;
+            cursor: pointer;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.05);
+        }
+        .photo-preview {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #f6e3ea;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            overflow: hidden;
+        }
+        .photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-caption {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            background: #ffeef4;
+            padding: 2px 8px;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        .add-btn {
+            background: #ffe0ea;
+            border: 1px dashed #d98cac;
+            border-radius: 50px;
+            padding: 0.5rem;
+            text-align: center;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-block;
+            width: auto;
+            padding: 0.5rem 1.2rem;
+        }
+
+        /* ========= 2. АНИМЕ-ПЛЕЕР ========= */
+        .anime-player {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+        .anime-video {
+            background: #1c1116;
+            border-radius: 44px;
+            overflow: hidden;
+            box-shadow: 0 18px 28px rgba(0,0,0,0.2);
+        }
+        .anime-video iframe {
+            width: 100%;
+            height: 380px;
+            border: none;
+        }
+        .episode-list {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .episode-btn {
+            background: #ffecf2;
+            border-radius: 60px;
+            padding: 0.3rem 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        /* ========= 3. КНИГА ВОСПОМИНАНИЙ (загрузка фото, текст, эмодзи) ========= */
+        .memory-book {
+            background: #fffef5;
+            border-radius: 48px;
+            padding: 1.5rem;
+            box-shadow: inset 0 0 0 1px #fff2e6, 0 15px 25px rgba(0,0,0,0.05);
+        }
+        .memory-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .memory-card {
+            background: #fffbf0;
+            border-radius: 32px;
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            border: 1px solid #ffe1cf;
+        }
+        .memory-img {
+            width: 70px;
+            height: 70px;
+            background: #f7e2ea;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            overflow: hidden;
+        }
+        .memory-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .memory-text {
+            flex: 2;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #794b62;
+        }
+        .memory-emoji {
+            font-size: 1.6rem;
+            cursor: pointer;
+        }
+        .book-controls {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .emoji-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .emoji-option {
+            font-size: 1.6rem;
+            cursor: pointer;
+            transition: 0.1s;
+            background: #ffeef4;
+            padding: 4px 8px;
+            border-radius: 50px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.7rem;
+            opacity: 0.6;
+        }
+
+        @media (max-width: 720px) {
+            .photo-card { width: 110px; }
+            .anime-video iframe { height: 240px; }
+            .welcome-text { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="flower-bg"></div>
+
+<!-- WELCOME ЭКРАН -->
+<div id="welcomeScreen" class="welcome-screen">
+    <div class="welcome-text">Welcome!</div>
+    <div class="welcome-sub">🌸 три лепестка · твои тёплые уголки 🌸</div>
+</div>
+
+<div id="mainSite" class="main-site">
+    <!-- Три цветка навигации -->
+    <div class="flower-nav">
+        <div class="flower-btn" data-tab="tab1"><span>🌸</span> Фото-флажки</div>
+        <div class="flower-btn" data-tab="tab2"><span>🌼</span> Аниме эхо</div>
+        <div class="flower-btn" data-tab="tab3"><span>🌺</span> Книга памяти</div>
+    </div>
+
+    <!-- ВКЛАДКА 1: ФОТОГАЛЕРЕЯ (как флажки) -->
+    <div id="tab1" class="tab active-tab">
+        <div class="card-panel">
+            <h2 style="color:#bc708b">📸 флажки-воспоминания</h2>
+            <div id="photoGallery" class="photo-grid"></div>
+            <div class="add-btn" id="addPhotoBtn">➕ повесить новое фото / картинку</div>
+            <input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <p style="font-size:0.7rem; margin-top:0.8rem;">✨ двойной клик по фото — удалить</p>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 2: АНИМЕ (Эхо террора + можно добавить серии) -->
+    <div id="tab2" class="tab">
+        <div class="card-panel">
+            <h2 style="color:#bc708b">🎬 Эхо террора / Zankyou no Terror</h2>
+            <div class="anime-player">
+                <div class="anime-video">
+                    <iframe id="animeIframe" src="https://www.youtube.com/embed/VxSzxoK0w24" allowfullscreen></iframe>
+                </div>
+                <div class="episode-list" id="episodeList">
+                    <!-- серии будут динамически -->
+                </div>
+                <div class="add-btn" id="addEpisodeBtn">➕ добавить серию (ссылка YouTube)</div>
+                <input type="text" id="episodeUrlInput" placeholder="вставьте ссылку на видео YouTube" style="display:none; width:100%; margin-top:8px; border-radius:60px; padding:6px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 3: КНИГА ВОСПОМИНАНИЙ (загрузка фото, текст, эмодзи) -->
+    <div id="tab3" class="tab">
+        <div class="card-panel memory-book">
+            <h2 style="color:#bc708b">📖 книга · мои мгновения</h2>
+            <div id="memoryContainer" class="memory-grid"></div>
+            <div class="book-controls">
+                <div class="add-btn" id="addMemoryBtn">📸 добавить страницу (фото)</div>
+                <div class="emoji-picker" id="globalEmojiPicker">
+                    <span class="emoji-option">🌸</span>
+                    <span class="emoji-option">🍰</span>
+                    <span class="emoji-option">🐈‍⬛</span>
+                    <span class="emoji-option">✨</span>
+                    <span class="emoji-option">🌙</span>
+                    <span class="emoji-option">🎐</span>
+                    <span class="emoji-option">🍡</span>
+                    <span class="emoji-option">💖</span>
+                </div>
+            </div>
+            <input type="file" id="memoryFileInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <p style="font-size:0.7rem; margin-top:1rem;">※ нажми на эмодзи, чтобы вставить в выбранную запись, или добавь новую запись с картинкой</p>
+        </div>
+    </div>
+    <footer>🌸 три цветка ведут к трём мирам · добавляй фото, смотри аниме, пиши книгу души 🌸</footer>
+</div>
+
+<script>
+    // ---------- ПЕРЕХОД WELCOME ----------
+    const welcomeDiv = document.getElementById('welcomeScreen');
+    const mainSite = document.getElementById('mainSite');
+    setTimeout(() => {
+        welcomeDiv.style.opacity = '0';
+        setTimeout(() => {
+            welcomeDiv.style.display = 'none';
+            mainSite.style.opacity = '1';
+        }, 1100);
+    }, 2200);
+
+    // ---------- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК (цветочки) ----------
+    const tabs = document.querySelectorAll('.tab');
+    const flowerBtns = document.querySelectorAll('.flower-btn');
+    function switchTab(tabId) {
+        tabs.forEach(t => t.classList.remove('active-tab'));
+        document.getElementById(tabId).classList.add('active-tab');
+        flowerBtns.forEach(btn => btn.classList.remove('active-flower'));
+        const activeBtn = Array.from(flowerBtns).find(btn => btn.dataset.tab === tabId);
+        if(activeBtn) activeBtn.classList.add('active-flower');
+    }
+    flowerBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+            switchTab(tabId);
+        });
+    });
+
+    // ---------- 1. ФОТОГАЛЕРЕЯ (флажки) ----------
+    let photosArray = [
+        { type: 'emoji', content: '🌸🎐', label: 'сакура' },
+        { type: 'emoji', content: '🍰✨', label: 'сладость' }
+    ];
+    const photoGallery = document.getElementById('photoGallery');
+    const addPhotoBtn = document.getElementById('addPhotoBtn');
+    const photoFileInput = document.getElementById('photoFileInput');
+
+    function renderGallery() {
+        photoGallery.innerHTML = '';
+        if(photosArray.length === 0) {
+            photoGallery.innerHTML = '<div style="padding:1rem;">🌸 повесь первое фото 🌸</div>';
+            return;
+        }
+        photosArray.forEach((item, idx) => {
+            const card = document.createElement('div');
+            card.className = 'photo-card';
+            const preview = document.createElement('div');
+            preview.className = 'photo-preview';
+            if(item.type === 'emoji') {
+                preview.innerText = item.content;
+                preview.style.fontSize = '2rem';
+            } else {
+                const img = document.createElement('img');
+                img.src = item.content;
+                preview.appendChild(img);
+            }
+            const captionSpan = document.createElement('div');
+            captionSpan.className = 'photo-caption';
+            captionSpan.innerText = item.label || 'милый миг';
+            card.appendChild(preview);
+            card.appendChild(captionSpan);
+            card.addEventListener('dblclick', () => {
+                if(confirm('удалить флажок?')) {
+                    photosArray.splice(idx,1);
+                    renderGallery();
+                }
+            });
+            photoGallery.appendChild(card);
+        });
+    }
+
+    addPhotoBtn.addEventListener('click', () => photoFileInput.click());
+    photoFileInput.addEventListener('change', (e) => {
+        if(photoFileInput.files && photoFileInput.files[0]) {
+            const file = photoFileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                let caption = prompt('подпись:', '🌸 момент');
+                if(!caption) caption = '✨ флажок';
+                photosArray.push({ type: 'image', content: ev.target.result, label: caption.slice(0,25) });
+                renderGallery();
+            };
+            reader.readAsDataURL(file);
+        }
+        photoFileInput.value = '';
+    });
+    renderGallery();
+
+    // ---------- 2. АНИМЕ-ПЛЕЕР (серии можно добавлять) ----------
+    let episodes = [
+        { name: "1 серия · начало", url: "https://www.youtube.com/embed/VxSzxoK0w24" },
+        { name: "2 серия · загадка", url: "https://www.youtube.com/embed/LfMa5j2T9cU" }
+    ];
+    const animeIframe = document.getElementById('animeIframe');
+    const episodeListDiv = document.getElementById('episodeList');
+    const addEpisodeBtn = document.getElementById('addEpisodeBtn');
+    const episodeUrlInput = document.getElementById('episodeUrlInput');
+
+    function renderEpisodes() {
+        episodeListDiv.innerHTML = '';
+        episodes.forEach((ep, idx) => {
+            const epBtn = document.createElement('div');
+            epBtn.className = 'episode-btn';
+            epBtn.innerText = ep.name;
+            epBtn.addEventListener('click', () => {
+                animeIframe.src = ep.url;
+            });
+            episodeListDiv.appendChild(epBtn);
+        });
+        // добавить кнопку удаления последней? но оставим просто дополнение
+    }
+
+    addEpisodeBtn.addEventListener('click', () => {
+        episodeUrlInput.style.display = 'block';
+        episodeUrlInput.placeholder = 'вставьте embed-ссылку (https://www.youtube.com/embed/...)';
+        episodeUrlInput.focus();
+        const tempHandler = () => {
+            let url = episodeUrlInput.value.trim();
+            if(url) {
+                let name = prompt('Название серии:', `Серия ${episodes.length+1}`);
+                if(!name) name = `Серия ${episodes.length+1}`;
+                episodes.push({ name: name, url: url });
+                renderEpisodes();
+            }
+            episodeUrlInput.style.display = 'none';
+            episodeUrlInput.value = '';
+            episodeUrlInput.removeEventListener('change', tempHandler);
+        };
+        episodeUrlInput.addEventListener('change', tempHandler, { once: true });
+    });
+    renderEpisodes();
+
+    // ---------- 3. КНИГА ВОСПОМИНАНИЙ (фото + текст + эмодзи выбор) ----------
+    let memories = [
+        { id: Date.now()+1, type: 'emoji', content: '🌸', text: 'первый лепесток', emoji: '🌸' },
+        { id: Date.now()+2, type: 'emoji', content: '🍰', text: 'десертный вечер', emoji: '🍰' }
+    ];
+    const memoryContainer = document.getElementById('memoryContainer');
+    const addMemoryBtn = document.getElementById('addMemoryBtn');
+    const memoryFileInput = document.getElementById('memoryFileInput');
+    let currentEditingId = null;  // для смены эмодзи у выбранной записи
+
+    function renderMemoryBook() {
+        memoryContainer.innerHTML = '';
+        if(memories.length === 0) {
+            memoryContainer.innerHTML = '<div style="padding:1rem; text-align:center;">📖 добавь первую страницу в книгу</div>';
+            return;
+        }
+        memories.forEach(mem => {
+            const card = document.createElement('div');
+            card.className = 'memory-card';
+            const imgDiv = document.createElement('div');
+            imgDiv.className = 'memory-img';
+            if(mem.type === 'emoji') {
+                imgDiv.innerText = mem.content;
+                imgDiv.style.fontSize = '2rem';
+            } else {
+                const img = document.createElement('img');
+                img.src = mem.content;
+                imgDiv.appendChild(img);
+            }
+            const textSpan = document.createElement('div');
+            textSpan.className = 'memory-text';
+            textSpan.innerText = mem.text;
+            const emojiSpan = document.createElement('div');
+            emojiSpan.className = 'memory-emoji';
+            emojiSpan.innerText = mem.emoji || '🌸';
+            emojiSpan.title = 'нажми, чтобы сменить эмодзи для этой записи';
+            emojiSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentEditingId = mem.id;
+                const pickerDiv = document.createElement('div');
+                pickerDiv.style.position = 'absolute';
+                pickerDiv.style.backgroundColor = '#fff0f5';
+                pickerDiv.style.borderRadius = '30px';
+                pickerDiv.style.padding = '6px';
+                pickerDiv.style.display = 'flex';
+                pickerDiv.style.gap = '6px';
+                pickerDiv.style.zIndex = '300';
+                const emojis = ['🌸','🍰','🐈‍⬛','✨','🌙','🎐','🍡','💖','😺','🕯️','🌼','💮'];
+                emojis.forEach(em => {
+                    const spanEm = document.createElement('span');
+                    spanEm.innerText = em;
+                    spanEm.style.cursor = 'pointer';
+                    spanEm.style.fontSize = '1.4rem';
+                    spanEm.addEventListener('click', () => {
+                        const found = memories.find(m => m.id === mem.id);
+                        if(found) found.emoji = em;
+                        renderMemoryBook();
+                        pickerDiv.remove();
+                        currentEditingId = null;
+                    });
+                    pickerDiv.appendChild(spanEm);
+                });
+                const rect = emojiSpan.getBoundingClientRect();
+                pickerDiv.style.position = 'fixed';
+                pickerDiv.style.top = rect.bottom + 'px';
+                pickerDiv.style.left = rect.left + 'px';
+                document.body.appendChild(pickerDiv);
+                const closePicker = (e) => { if(pickerDiv && !pickerDiv.contains(e.target)) { pickerDiv.remove(); document.removeEventListener('click', closePicker); } };
+                setTimeout(() => document.addEventListener('click', closePicker), 10);
+            });
+            const deleteBtn = document.createElement('div');
+            deleteBtn.innerText = '🗑️';
+            deleteBtn.style.cursor = 'pointer';
+            deleteBtn.style.fontSize = '1.1rem';
+            deleteBtn.style.marginLeft = '6px';
+            deleteBtn.addEventListener('click', () => {
+                if(confirm('удалить страницу из книги?')) {
+                    memories = memories.filter(m => m.id !== mem.id);
+                    renderMemoryBook();
+                }
+            });
+            card.appendChild(imgDiv);
+            card.appendChild(textSpan);
+            card.appendChild(emojiSpan);
+            card.appendChild(deleteBtn);
+            memoryContainer.appendChild(card);
+        });
+    }
+
+    // добавить новую запись (с фото или эмодзи)
+    function addNewMemory(imageDataUrl = null, customText = null) {
+        let type = 'emoji';
+        let content = '🌸';
+        if(imageDataUrl) {
+            type = 'image';
+            content = imageDataUrl;
+        } else {
+            // случайная эмодзи из набора
+            const emojis = ['🌸','🍰','🐈‍⬛','✨','🌙','🎐','🍡'];
+            content = emojis[Math.floor(Math.random() * emojis.length)];
+        }
+        let text = customText || prompt('напиши строчку в книгу:', 'дорогой момент...');
+        if(!text) text = 'тихая радость';
+        let chosenEmoji = (type === 'emoji') ? content : '🌸';
+        memories.push({
+            id: Date.now(),
+            type: type,
+            content: content,
+            text: text.slice(0, 80),
+            emoji: chosenEmoji
+        });
+        renderMemoryBook();
+    }
+
+    addMemoryBtn.addEventListener('click', () => {
+        memoryFileInput.click();
+    });
+    memoryFileInput.addEventListener('change', (e) => {
+        if(memoryFileInput.files && memoryFileInput.files[0]) {
+            const file = memoryFileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                addNewMemory(ev.target.result, null);
+            };
+            reader.readAsDataURL(file);
+        }
+        memoryFileInput.value = '';
+    });
+    // также кнопка быстрого добавления эмодзи-записи (без фото)
+    const globalPicker = document.getElementById('globalEmojiPicker');
+    if(globalPicker) {
+        const emojiOptions = globalPicker.querySelectorAll('.emoji-option');
+        emojiOptions.forEach(emojiSpan => {
+            emojiSpan.addEventListener('click', () => {
+                let em = emojiSpan.innerText;
+                let text = prompt('подпись для книги:', 'милый миг');
+                if(!text) text = '☁️ воспоминание';
+                memories.push({
+                    id: Date.now(),
+                    type: 'emoji',
+                    content: em,
+                    text: text.slice(0,70),
+                    emoji: em
+                });
+                renderMemoryBook();
+            });
+        });
+    }
+
+    renderMemoryBook();
+    // стартовая активация вкладки
+    switchTab('tab1');
+</script>
+</body>
+</html>
+```
